@@ -402,6 +402,65 @@ class TestBatchCSV(unittest.TestCase):
             if os.path.exists(out_path):
                 os.unlink(out_path)
 
+    def test_batch_sample_csv(self):
+        """Test batch processing using the repository's sample.csv with standard clinical header names."""
+        import os
+        import tempfile
+        from pathlib import Path
+        from cli import main
+
+        sample_path = Path(__file__).parent.parent / "sample.csv"
+        self.assertTrue(sample_path.exists())
+
+        with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp_out:
+            out_path = tmp_out.name
+
+        try:
+            ret = main(["batch", "-i", str(sample_path), "-o", out_path])
+            self.assertEqual(ret, 0)
+            self.assertTrue(os.path.exists(out_path))
+
+            with open(out_path, newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
+
+            self.assertEqual(len(rows), 8)
+            for r in rows:
+                self.assertIn("ascvd_10yr_pct", r)
+                self.assertFalse(r["ascvd_10yr_pct"].startswith("ERROR"))
+                self.assertIn(r["ascvd_category"], ["low", "borderline", "intermediate", "high"])
+        finally:
+            if os.path.exists(out_path):
+                os.unlink(out_path)
+
+    def test_batch_handles_invalid_data(self):
+        """Test that invalid row in CSV produces error message without aborting."""
+        import os
+        import tempfile
+        from cli import main
+
+        csv_content = (
+            "age,sex,race,total_cholesterol,hdl,sbp,bp_meds,smoker,diabetes\n"
+            "25,M,white,213,50,120,false,false,false\n"  # age < 40 invalid
+        )
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False, newline="") as inp:
+            inp.write(csv_content)
+            inp_path = inp.name
+        out_path = inp_path.replace(".csv", "_out.csv")
+
+        try:
+            ret = main(["batch", "-i", inp_path, "-o", out_path])
+            self.assertEqual(ret, 0)
+            with open(out_path, newline="", encoding="utf-8") as f:
+                rows = list(csv.DictReader(f))
+            self.assertEqual(len(rows), 1)
+            self.assertTrue(rows[0]["ascvd_10yr_pct"].startswith("ERROR"))
+        finally:
+            os.unlink(inp_path)
+            if os.path.exists(out_path):
+                os.unlink(out_path)
+
 
 if __name__ == "__main__":
     unittest.main()
+

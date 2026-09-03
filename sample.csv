@@ -1,3 +1,9 @@
-id,value,qty
-A,10,2
-B,20,3
+age,sex,race,systolic_bp,total_cholesterol,hdl_cholesterol,bp_treated,diabetes,smoker
+55,male,white,120,213,50,0,0,0
+55,female,white,120,213,50,0,0,0
+55,male,african_american,120,213,50,0,0,0
+55,female,african_american,120,213,50,0,0,0
+62,male,white,148,230,42,1,0,1
+68,female,black,160,260,38,1,1,0
+45,female,white,115,185,62,0,0,0
+72,male,white,155,210,45,1,1,1

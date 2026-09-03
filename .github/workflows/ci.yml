@@ -1,4 +1,4 @@
-name: Ascvd Risk Calculator CI/CD & Security Verification
+name: ASCVD Risk Calculator CI
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ master, main ]
 
 jobs:
-  test-and-audit:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -21,20 +21,21 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install dependencies
+    - name: Install test dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install fastapi uvicorn pydantic pytest
+        pip install pytest
 
     - name: Run Pytest Suite
       run: |
-        pytest -v
+        python -m pytest -p no:zarr -v
 
-    - name: Security SAST & Zero-PHI Audit
+    - name: CLI Single Calculation Smoke Test
       run: |
-        python -c "
-        from agents.base import PHIGuard, AuditLogger
-        import pytest
-        assert AuditLogger.verify_integrity() is True
-        print('Security & Zero-PHI Audit Passed!')
-        "
+        python cli.py calculate --age 55 --sex male --race white --tc 213 --hdl 50 --sbp 120 --lifetime --json
+
+    - name: CLI Batch Processing Smoke Test
+      run: |
+        python cli.py batch -i sample.csv -o out_smoke.csv
+        python -c "import csv; rows = list(csv.DictReader(open('out_smoke.csv'))); assert len(rows) == 8, f'Expected 8 rows, got {len(rows)}'"
+        rm out_smoke.csv

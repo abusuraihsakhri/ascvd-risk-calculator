@@ -148,15 +148,49 @@ def cmd_batch(args):
 
     for row in rows:
         try:
-            age = int(row["age"])
-            sex = row["sex"]
-            race = row["race"]
-            tc = float(row["total_cholesterol"])
-            hdl_val = float(row["hdl"])
-            sbp_val = float(row["sbp"])
-            on_meds = row.get("bp_meds", "").strip().lower() in ("1", "true", "yes")
-            is_smoker = row.get("smoker", "").strip().lower() in ("1", "true", "yes")
-            has_dm = row.get("diabetes", "").strip().lower() in ("1", "true", "yes")
+            # Flexible key lookup
+            def _get(keys, default=None):
+                for k in keys:
+                    if k in row and row[k] is not None and row[k].strip() != "":
+                        return row[k].strip()
+                return default
+
+            age_str = _get(["age"])
+            if age_str is None:
+                raise KeyError("Missing age column")
+            age = int(age_str)
+
+            sex = _get(["sex", "gender"])
+            if sex is None:
+                raise KeyError("Missing sex column")
+
+            race = _get(["race", "ethnicity"])
+            if race is None:
+                raise KeyError("Missing race column")
+
+            tc_str = _get(["total_cholesterol", "tc", "total_chol"])
+            if tc_str is None:
+                raise KeyError("Missing total_cholesterol column")
+            tc = float(tc_str)
+
+            hdl_str = _get(["hdl_cholesterol", "hdl", "hdl_chol"])
+            if hdl_str is None:
+                raise KeyError("Missing hdl column")
+            hdl_val = float(hdl_str)
+
+            sbp_str = _get(["systolic_bp", "sbp", "systolic"])
+            if sbp_str is None:
+                raise KeyError("Missing systolic blood pressure column")
+            sbp_val = float(sbp_str)
+
+            meds_val = _get(["bp_treated", "bp_meds", "treated_htn", "htn_meds"], "0").lower()
+            on_meds = meds_val in ("1", "true", "yes", "t", "y")
+
+            smoker_val = _get(["smoker", "smoking", "current_smoker", "tobacco"], "0").lower()
+            is_smoker = smoker_val in ("1", "true", "yes", "t", "y")
+
+            dm_val = _get(["diabetes", "diabetic", "dm"], "0").lower()
+            has_dm = dm_val in ("1", "true", "yes", "t", "y")
 
             r = ten_year_ascvd(age, sex, race, tc, hdl_val, sbp_val,
                                on_meds, is_smoker, has_dm)
@@ -169,7 +203,9 @@ def cmd_batch(args):
             merged["ascvd_10yr_pct"] = f"ERROR: {e}"
             merged["ascvd_category"] = ""
             merged["ascvd_group"] = ""
-        out_rows.append(merged)
+            out_rows.append(merged)
+        else:
+            out_rows.append(merged)
 
     with open(args.output, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=out_fields)
